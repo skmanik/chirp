@@ -1,11 +1,12 @@
 import { type NextPage } from "next";
 import Head from "next/head";
-import Link from "next/link";
+// import Link from "next/link";
 import Image from "next/image";
 import { api } from "~/utils/api";
 import type { RouterOutputs } from "~/utils/api";
 import { useUser } from "@clerk/nextjs";
-import { SignOutButton } from "@clerk/nextjs";
+// import { SignOutButton } from "@clerk/nextjs";
+import { LoadingPage } from "../components/loading";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -56,16 +57,31 @@ const PostView = (props: PostWithUser) => {
   );
 }
 
-const Home: NextPage = () => {
-  // const { user } = useUser();
-  const { isLoaded, isSignedIn, user } = useUser();
-
+const Feed = () => {
   // tRPC lets you make server functions on vercel
   // fetch datas from database
-  const { data, isLoading } = api.posts.getAll.useQuery();
+  const { data, isLoading: postsLoading } = api.posts.getAll.useQuery();
 
-  if (isLoading) return <div>Loading...</div>;
+  if (postsLoading) return <LoadingPage />;
   if (!data) return <div>Something went wrong.</div>;
+
+  return (
+    <div className="flex flex-col">
+      {data?.map((fullPost) => (
+        <PostView {...fullPost} key={fullPost.post.id} />
+      ))}
+    </div>
+  );
+}
+
+const Home: NextPage = () => {
+  const { isSignedIn, isLoaded: userLoaded } = useUser();
+
+  // start fetching asap (react query only fetches once and starts caching)
+  const { data } = api.posts.getAll.useQuery();
+
+  // return empty div if user isn't loaded
+  if (!userLoaded) return <div />;
 
   return (
     <>
@@ -82,11 +98,7 @@ const Home: NextPage = () => {
               <CreatePostWizard />
             </div>
           </div>}
-          <div className="flex flex-col">
-            {data?.map((fullPost) => (
-              <PostView {...fullPost} key={fullPost.post.id} />
-            ))}
-          </div>
+          <Feed />
         </div>
       </main>
     </>
