@@ -7,6 +7,8 @@ import type { RouterOutputs } from "~/utils/api";
 import { useUser } from "@clerk/nextjs";
 // import { SignOutButton } from "@clerk/nextjs";
 import { LoadingPage } from "../components/loading";
+import { useState } from "react";
+
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -14,8 +16,21 @@ dayjs.extend(relativeTime);
 
 const CreatePostWizard = () => {
   const { user } = useUser();
-  if (!user) return null;
+  const [input, setInput] = useState(""); 
 
+  // tRPC stuff
+  // grab whole tRPC cache through api context call
+  const ctx = api.useContext();
+  const { mutate, isLoading: isPosting } = api.posts.create.useMutation({
+    onSuccess: () => {
+      setInput("");
+
+      // void tells TypeScript we don't care that it's async we just wanna run it in bg
+      void ctx.posts.getAll.invalidate();
+    }
+  });
+
+  if (!user) return null;
   console.log("user", user);
 
   return (<div className="flex w-full gap-3">
@@ -26,7 +41,14 @@ const CreatePostWizard = () => {
       width={56} 
       height={56}
     />
-    <input placeholder="Type some emojis!" className="bg-transparent grow outline-none" />
+    <input 
+      placeholder="Type some emojis!" 
+      className="bg-transparent grow outline-none"
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      disabled={isPosting}
+    />
+    <button onClick={() => mutate({ content: input })}>Post</button>
   </div>);
 }
 
@@ -67,7 +89,7 @@ const Feed = () => {
 
   return (
     <div className="flex flex-col">
-      {data?.map((fullPost) => (
+      {data.map((fullPost) => (
         <PostView {...fullPost} key={fullPost.post.id} />
       ))}
     </div>
